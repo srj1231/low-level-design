@@ -6,7 +6,7 @@ import org.saumya.lld.taskScheduler.worker.WorkerManager;
 import org.saumya.lld.taskScheduler.worker.WorkerNode;
 import org.saumya.lld.taskScheduler.worker.impl.LeastLoadedLoadBalancer;
 
-public class Main {
+public class TaskSchedulerRunner {
     public static void main(String[] args) throws InterruptedException {
         WorkerManager workerManager = new WorkerManager(new LeastLoadedLoadBalancer());
         workerManager.addWorker(new WorkerNode("worker-1", 2));
