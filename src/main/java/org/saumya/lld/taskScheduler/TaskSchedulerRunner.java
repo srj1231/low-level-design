@@ -14,13 +14,11 @@ public class TaskSchedulerRunner {
 
         TaskScheduler taskScheduler = new TaskScheduler(workerManager, new InMemoryTaskRepo());
 
-        String t1 = taskScheduler.scheduleOneTime(() -> {
-            System.out.println("One-time task, Task 1 executed");
-        }, 1000);
+        String t1 = taskScheduler.scheduleOneTime(() ->
+            System.out.println("One-time task, Task 1 executed"), 1000);
 
-        String t2 = taskScheduler.scheduleRecurring(() -> {
-            System.out.println("Recurring task, Task 2 executed");
-        }, 500, 2000, 3);
+        String t2 = taskScheduler.scheduleRecurring(() ->
+            System.out.println("Recurring task, Task 2 executed"), 500, 2000, 3);
 
         Thread.sleep(2000);
         System.out.println("t1 status: " + taskScheduler.getStatus(t1));
