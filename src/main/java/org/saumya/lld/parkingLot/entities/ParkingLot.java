@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.SpotType;
 import org.saumya.lld.parkingLot.enums.VehicleType;
+import org.saumya.lld.parkingLot.strategies.FeeStrategy;
+import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +19,10 @@ import java.util.UUID;
 public class ParkingLot {
     List<Floor> floors;
     Map<String, Ticket> activeTickets;
-    static final int RATE_PER_HOUR = 20; // flat rate
+//    static final int RATE_PER_HOUR = 20; // flat rate
+
+    public FeeStrategy feeStrategy;
+    public SpotAssignmentStrategy spotAssignmentStrategy;
 
     private SpotType getSpotType(VehicleType vehicleType) {
         return switch (vehicleType) {
@@ -29,17 +34,14 @@ public class ParkingLot {
 
     public Ticket parkVehicle(Vehicle vehicle) {
         SpotType type = getSpotType(vehicle.getVehicleType());
-        for(Floor floor : floors) {
-            ParkingSpot spot = floor.findAvailableSpot(type);
-            if(spot != null) {
-                spot.assignVehicle(vehicle);
-                Ticket ticket = new Ticket(UUID.randomUUID().toString(), spot, vehicle);
-                activeTickets.put(ticket.getId(), ticket);
-                return ticket;
-            }
-        }
+        ParkingSpot spot = spotAssignmentStrategy.findSpot(floors, type);
+        if(spot == null)
+            throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
 
-        throw new RuntimeException("No available spot, parking lot is full.");
+        spot.assignVehicle(vehicle);
+        Ticket ticket = new Ticket(UUID.randomUUID().toString(), spot, vehicle);
+        activeTickets.put(ticket.getId(), ticket);
+        return ticket;
     }
 
     public double unParkVehicle(String ticketId) {
@@ -49,6 +51,6 @@ public class ParkingLot {
         ticket.getParkingSpot().unparkVehicle();
         activeTickets.remove(ticketId);
 
-        return ticket.getDurationInHours() + RATE_PER_HOUR;
+        return feeStrategy.calculateFee(ticket.getVehicle(), ticket.getDurationInHours());
     }
 }

@@ -11,4 +11,5 @@ import org.saumya.lld.parkingLot.enums.VehicleType;
 public class Vehicle {
     String vehicleNumber;
     VehicleType vehicleType;
+    public boolean isEV;
 }

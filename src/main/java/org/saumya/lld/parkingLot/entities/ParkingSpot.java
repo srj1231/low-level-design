@@ -15,6 +15,7 @@ public class ParkingSpot {
     SpotType spotType;
     SpotStatus spotStatus;
     Vehicle parkedVehicle;
+    int distanceFromElevator;
 
     public boolean isAvailable() {
         return spotStatus == SpotStatus.AVAILABLE;

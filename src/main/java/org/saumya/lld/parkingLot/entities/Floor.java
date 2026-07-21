@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.SpotType;
 
+import java.util.Comparator;
 import java.util.List;
 
 @NoArgsConstructor
@@ -18,7 +19,14 @@ public class Floor {
     public ParkingSpot findAvailableSpot(SpotType spotType) {
         return parkingSpots.stream()
                 .filter(parkingSpot -> parkingSpot.isAvailable() && parkingSpot.getSpotType() == spotType)
-                .findFirst()
+                .findFirst()    // return first available spot
+                .orElse(null);
+    }
+
+    public ParkingSpot findSpotNearestToElevator(SpotType spotType) {
+        return parkingSpots.stream()
+                .filter(parkingSpot -> parkingSpot.isAvailable() && parkingSpot.getSpotType() == spotType)
+                .min(Comparator.comparingInt(ParkingSpot::getDistanceFromElevator))
                 .orElse(null);
     }
 }
