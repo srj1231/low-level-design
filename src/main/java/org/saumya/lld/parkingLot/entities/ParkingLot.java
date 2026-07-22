@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.PaymentMethod;
 import org.saumya.lld.parkingLot.enums.SpotType;
 import org.saumya.lld.parkingLot.exceptions.InvalidTicketException;
+import org.saumya.lld.parkingLot.exceptions.ParkingLotBusyException;
 import org.saumya.lld.parkingLot.exceptions.ParkingLotFullException;
 import org.saumya.lld.parkingLot.strategies.FeeStrategy;
 import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
@@ -24,6 +25,9 @@ public class ParkingLot {
     ConcurrentHashMap<String, Ticket> activeTickets;  // ticketId -> ticket
     ConcurrentHashMap<String, Payment> payments;  // ticketId -> payment
 //    static final int RATE_PER_HOUR = 20; // flat rate
+
+    final int MAX_RETRIES = 3;
+    final long backOffMs = 10;
 
     public FeeStrategy feeStrategy;
     public SpotAssignmentStrategy spotAssignmentStrategy;
@@ -48,6 +52,8 @@ public class ParkingLot {
     public Ticket parkVehicle(Vehicle vehicle, String entryGateId) {
         SpotType requiredSpotType = vehicle.getVehicleType().getRequiredSpotType();
         ParkingSpot assignedSpot = null;
+        int attempts = 0;
+
         while (assignedSpot == null) {  // optimistic locking: try and retry
             ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, requiredSpotType);
             if(candidate == null) {
@@ -57,6 +63,19 @@ public class ParkingLot {
                 assignedSpot = candidate;
             }
             // else try next spot because current spot is already occupied
+            else {
+                attempts++;
+                if(attempts >= MAX_RETRIES) {
+                    throw new ParkingLotBusyException("Parking lot is busy. Could not find an available spot after " + MAX_RETRIES + " attempts.");
+                }
+
+                try {
+                    Thread.sleep(backOffMs * attempts);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
         }
 
         // locking the entire parkVehicle call would work but kills throughput across floors for no reason

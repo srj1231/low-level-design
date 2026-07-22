@@ -21,6 +21,7 @@ public class ParkingSpot {
         return spotStatus == SpotStatus.AVAILABLE;
     }
 
+    // synchronized gives me mutual exclusion on the spot object
     public synchronized boolean assignVehicle(Vehicle vehicle) {
         if(!spotStatus.equals(SpotStatus.AVAILABLE)) return false; // check
         this.parkedVehicle = vehicle;   // act
