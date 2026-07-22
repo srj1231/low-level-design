@@ -1,56 +1,101 @@
 package org.saumya.lld.parkingLot.entities;
 
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.saumya.lld.parkingLot.enums.PaymentMethod;
 import org.saumya.lld.parkingLot.enums.SpotType;
-import org.saumya.lld.parkingLot.enums.VehicleType;
+import org.saumya.lld.parkingLot.exceptions.InvalidTicketException;
+import org.saumya.lld.parkingLot.exceptions.ParkingLotBusyException;
+import org.saumya.lld.parkingLot.exceptions.ParkingLotFullException;
 import org.saumya.lld.parkingLot.strategies.FeeStrategy;
 import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Getter
 @NoArgsConstructor
-@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ParkingLot {
     List<Floor> floors;
-    Map<String, Ticket> activeTickets;
+    List<Gate> gates;
+    ConcurrentHashMap<String, Ticket> activeTickets;  // ticketId -> ticket
+    ConcurrentHashMap<String, Payment> payments;  // ticketId -> payment
 //    static final int RATE_PER_HOUR = 20; // flat rate
+
+    final int MAX_RETRIES = 3;
+    final long backOffMs = 10;
 
     public FeeStrategy feeStrategy;
     public SpotAssignmentStrategy spotAssignmentStrategy;
 
-    private SpotType getSpotType(VehicleType vehicleType) {
-        return switch (vehicleType) {
-            case CAR -> SpotType.MEDIUM;
-            case BIKE -> SpotType.SMALL;
-            case TRUCK -> SpotType.LARGE;
-        };
+    public ParkingLot(List<Floor> floors, List<Gate> gates,
+                      SpotAssignmentStrategy spotAssignmentStrategy, FeeStrategy feeStrategy) {
+        this.floors = floors;
+        this.gates = gates;
+        this.activeTickets = new ConcurrentHashMap<>();
+        this.payments = new ConcurrentHashMap<>();
+        this.spotAssignmentStrategy = spotAssignmentStrategy;
+        this.feeStrategy = feeStrategy;
     }
 
-    public Ticket parkVehicle(Vehicle vehicle) {
-        SpotType type = getSpotType(vehicle.getVehicleType());
-        ParkingSpot spot = spotAssignmentStrategy.findSpot(floors, type);
-        if(spot == null)
-            throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
+    public boolean hasAvailableSpots(SpotType spotType) {
+        for(Floor floor : floors) {
+            if(floor.findAvailableSpot(spotType) != null) return true;
+        }
+        return false;
+    }
 
-        spot.assignVehicle(vehicle);
-        Ticket ticket = new Ticket(UUID.randomUUID().toString(), spot, vehicle);
+    public Ticket parkVehicle(Vehicle vehicle, String entryGateId) {
+        SpotType requiredSpotType = vehicle.getVehicleType().getRequiredSpotType();
+        ParkingSpot assignedSpot = null;
+        int attempts = 0;
+
+        while (assignedSpot == null) {  // optimistic locking: try and retry
+            ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, requiredSpotType);
+            if(candidate == null) {
+                throw new ParkingLotFullException("No " + requiredSpotType + " spots available.");
+            }
+            if(candidate.assignVehicle(vehicle)) {  // atomic check and set
+                assignedSpot = candidate;
+            }
+            // else try next spot because current spot is already occupied
+            else {
+                attempts++;
+                if(attempts >= MAX_RETRIES) {
+                    throw new ParkingLotBusyException("Parking lot is busy. Could not find an available spot after " + MAX_RETRIES + " attempts.");
+                }
+
+                try {
+                    Thread.sleep(backOffMs * attempts);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        // locking the entire parkVehicle call would work but kills throughput across floors for no reason
+
+        Ticket ticket = new Ticket(UUID.randomUUID().toString(), assignedSpot, vehicle, entryGateId);
         activeTickets.put(ticket.getId(), ticket);
         return ticket;
     }
 
-    public double unParkVehicle(String ticketId) {
-        Ticket ticket = activeTickets.get(ticketId);
-        if(ticket == null) throw new RuntimeException("Ticket not found");
-        ticket.closeTicket();
+    public Payment unParkVehicle(String ticketId, String gateId, PaymentMethod paymentMethod) {
+        Ticket ticket = activeTickets.get(ticketId);    // with ConcurrentHashMap it is atomic - only one thread can get the ticket at a time
+        if(ticket == null) throw new InvalidTicketException("Ticket not found or already processed: " + ticketId);
+        ticket.closeTicket(gateId);
         ticket.getParkingSpot().unparkVehicle();
-        activeTickets.remove(ticketId);
+        activeTickets.remove(ticketId); // this is an atomic operation with ConcurrentHashMap
 
-        return feeStrategy.calculateFee(ticket.getVehicle(), ticket.getDurationInHours());
+        double amount = feeStrategy.calculateFee(ticket.getVehicle(), ticket.getDurationInHours());
+        Payment payment = new Payment(ticketId, amount, paymentMethod);
+        payment.markCompleted();
+        payments.put(ticketId, payment);
+        return payment;
     }
 }

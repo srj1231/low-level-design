@@ -12,17 +12,20 @@ import java.time.LocalDateTime;
 public class Ticket {
     final String id;
     final ParkingSpot parkingSpot;
+    final String entryGateId;
+    String exitGateId;
 
     final Vehicle vehicle;
     TicketStatus ticketStatus;
     final LocalDateTime entryTime;
     LocalDateTime exitTime;
 
-    public Ticket(String id, ParkingSpot spot, Vehicle vehicle) {
+    public Ticket(String id, ParkingSpot spot, Vehicle vehicle, String entryGateId) {
         this.id = id;
         this.parkingSpot = spot;
         this.vehicle = vehicle;
         this.ticketStatus = TicketStatus.ACTIVE;
+        this.entryGateId = entryGateId;
         this.entryTime = LocalDateTime.now();
     }
 
@@ -30,8 +33,9 @@ public class Ticket {
         return Duration.between(entryTime, exitTime).toHours() + 1; // +1 for partial hour
     }
 
-    public void closeTicket() {
+    public void closeTicket(String exitGateId) {
         this.exitTime = LocalDateTime.now();
+        this.exitGateId = exitGateId;
         this.ticketStatus = TicketStatus.PAID;
     }
 }

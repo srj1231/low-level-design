@@ -17,16 +17,19 @@ public class ParkingSpot {
     Vehicle parkedVehicle;
     int distanceFromElevator;
 
-    public boolean isAvailable() {
+    public synchronized boolean isAvailable() {
         return spotStatus == SpotStatus.AVAILABLE;
     }
 
-    public void assignVehicle(Vehicle vehicle) {
-        this.parkedVehicle = vehicle;
+    // synchronized gives me mutual exclusion on the spot object
+    public synchronized boolean assignVehicle(Vehicle vehicle) {
+        if(!spotStatus.equals(SpotStatus.AVAILABLE)) return false; // check
+        this.parkedVehicle = vehicle;   // act
         this.spotStatus = SpotStatus.OCCUPIED;
+        return true;
     }
 
-    public void unparkVehicle() {
+    public synchronized void unparkVehicle() {
         this.parkedVehicle = null;
         this.spotStatus = SpotStatus.AVAILABLE;
     }
