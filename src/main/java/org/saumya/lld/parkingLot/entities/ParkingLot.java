@@ -46,14 +46,23 @@ public class ParkingLot {
         };
     }
 
-    public Ticket parkVehicle(Vehicle vehicle) {
+    public Ticket parkVehicle(Vehicle vehicle, String entryGateId) {
         SpotType type = getSpotType(vehicle.getVehicleType());
-        ParkingSpot spot = spotAssignmentStrategy.findSpot(floors, type);
-        if(spot == null)
-            throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
+        ParkingSpot assignedSpot = null;
+        while (assignedSpot == null) {  // optimistic locking: try and retry
+            ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, type);
+            if(candidate == null) {
+                throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
+            }
+            if(candidate.assignVehicle(vehicle)) {  // atomic check and set
+                assignedSpot = candidate;
+            }
+            // else try next spot because current spot is already occupied
+        }
 
-        spot.assignVehicle(vehicle);
-        Ticket ticket = new Ticket(UUID.randomUUID().toString(), spot, vehicle, "G1");
+        // locking the entire parkVehicle call would work but kills throughput across floors for no reason
+
+        Ticket ticket = new Ticket(UUID.randomUUID().toString(), assignedSpot, vehicle, entryGateId);
         activeTickets.put(ticket.getId(), ticket);
         return ticket;
     }

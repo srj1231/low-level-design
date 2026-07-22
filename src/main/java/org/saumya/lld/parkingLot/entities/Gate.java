@@ -18,7 +18,7 @@ public class Gate {
         if(type != GateType.ENTRY) {
             throw new RuntimeException("This is not an entry gate");
         }
-        return parkingLot.parkVehicle(vehicle);
+        return parkingLot.parkVehicle(vehicle, this.gateId);
     }
 
     public Payment processExit(ParkingLot parkingLot, String ticketId, PaymentMethod paymentMethod) {
