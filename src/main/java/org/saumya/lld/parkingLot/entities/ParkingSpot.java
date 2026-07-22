@@ -22,8 +22,8 @@ public class ParkingSpot {
     }
 
     public synchronized boolean assignVehicle(Vehicle vehicle) {
-        if(!spotStatus.equals(SpotStatus.AVAILABLE)) return false;
-        this.parkedVehicle = vehicle;
+        if(!spotStatus.equals(SpotStatus.AVAILABLE)) return false; // check
+        this.parkedVehicle = vehicle;   // act
         this.spotStatus = SpotStatus.OCCUPIED;
         return true;
     }

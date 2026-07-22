@@ -10,10 +10,9 @@ import org.saumya.lld.parkingLot.enums.VehicleType;
 import org.saumya.lld.parkingLot.strategies.FeeStrategy;
 import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @NoArgsConstructor
@@ -21,8 +20,8 @@ import java.util.UUID;
 public class ParkingLot {
     List<Floor> floors;
     List<Gate> gates;
-    Map<String, Ticket> activeTickets;  // ticketId -> ticket
-    Map<String, Payment> payments;  // ticketId -> payment
+    ConcurrentHashMap<String, Ticket> activeTickets;  // ticketId -> ticket
+    ConcurrentHashMap<String, Payment> payments;  // ticketId -> payment
 //    static final int RATE_PER_HOUR = 20; // flat rate
 
     public FeeStrategy feeStrategy;
@@ -32,8 +31,8 @@ public class ParkingLot {
                       SpotAssignmentStrategy spotAssignmentStrategy, FeeStrategy feeStrategy) {
         this.floors = floors;
         this.gates = gates;
-        this.activeTickets = new HashMap<>();
-        this.payments = new HashMap<>();
+        this.activeTickets = new ConcurrentHashMap<>();
+        this.payments = new ConcurrentHashMap<>();
         this.spotAssignmentStrategy = spotAssignmentStrategy;
         this.feeStrategy = feeStrategy;
     }
@@ -68,11 +67,11 @@ public class ParkingLot {
     }
 
     public Payment unParkVehicle(String ticketId, String gateId, PaymentMethod paymentMethod) {
-        Ticket ticket = activeTickets.get(ticketId);
-        if(ticket == null) throw new RuntimeException("Ticket not found");
+        Ticket ticket = activeTickets.get(ticketId);    // with ConcurrentHashMap it is atomic - only one thread can get the ticket at a time
+        if(ticket == null) throw new RuntimeException("Invalid ticket id, or ticket already processed.");
         ticket.closeTicket(gateId);
         ticket.getParkingSpot().unparkVehicle();
-        activeTickets.remove(ticketId);
+        activeTickets.remove(ticketId); // this is an atomic operation with ConcurrentHashMap
 
         double amount = feeStrategy.calculateFee(ticket.getVehicle(), ticket.getDurationInHours());
         Payment payment = new Payment(ticketId, amount, paymentMethod);
