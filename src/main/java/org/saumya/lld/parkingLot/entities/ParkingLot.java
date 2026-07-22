@@ -6,6 +6,8 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.PaymentMethod;
 import org.saumya.lld.parkingLot.enums.SpotType;
+import org.saumya.lld.parkingLot.exceptions.InvalidTicketException;
+import org.saumya.lld.parkingLot.exceptions.ParkingLotFullException;
 import org.saumya.lld.parkingLot.strategies.FeeStrategy;
 import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
 
@@ -36,14 +38,12 @@ public class ParkingLot {
         this.feeStrategy = feeStrategy;
     }
 
-// switch violates OCP
-//    private SpotType getSpotType(VehicleType vehicleType) {
-//        return switch (vehicleType) {
-//            case CAR -> SpotType.MEDIUM;
-//            case BIKE -> SpotType.SMALL;
-//            case TRUCK -> SpotType.LARGE;
-//        };
-//    }
+    public boolean hasAvailableSpots(SpotType spotType) {
+        for(Floor floor : floors) {
+            if(floor.findAvailableSpot(spotType) != null) return true;
+        }
+        return false;
+    }
 
     public Ticket parkVehicle(Vehicle vehicle, String entryGateId) {
         SpotType requiredSpotType = vehicle.getVehicleType().getRequiredSpotType();
@@ -51,7 +51,7 @@ public class ParkingLot {
         while (assignedSpot == null) {  // optimistic locking: try and retry
             ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, requiredSpotType);
             if(candidate == null) {
-                throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
+                throw new ParkingLotFullException("No " + requiredSpotType + " spots available.");
             }
             if(candidate.assignVehicle(vehicle)) {  // atomic check and set
                 assignedSpot = candidate;
@@ -68,7 +68,7 @@ public class ParkingLot {
 
     public Payment unParkVehicle(String ticketId, String gateId, PaymentMethod paymentMethod) {
         Ticket ticket = activeTickets.get(ticketId);    // with ConcurrentHashMap it is atomic - only one thread can get the ticket at a time
-        if(ticket == null) throw new RuntimeException("Invalid ticket id, or ticket already processed.");
+        if(ticket == null) throw new InvalidTicketException("Ticket not found or already processed: " + ticketId);
         ticket.closeTicket(gateId);
         ticket.getParkingSpot().unparkVehicle();
         activeTickets.remove(ticketId); // this is an atomic operation with ConcurrentHashMap
