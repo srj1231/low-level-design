@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.PaymentMethod;
 import org.saumya.lld.parkingLot.enums.SpotType;
-import org.saumya.lld.parkingLot.enums.VehicleType;
 import org.saumya.lld.parkingLot.strategies.FeeStrategy;
 import org.saumya.lld.parkingLot.strategies.SpotAssignmentStrategy;
 
@@ -37,19 +36,20 @@ public class ParkingLot {
         this.feeStrategy = feeStrategy;
     }
 
-    private SpotType getSpotType(VehicleType vehicleType) {
-        return switch (vehicleType) {
-            case CAR -> SpotType.MEDIUM;
-            case BIKE -> SpotType.SMALL;
-            case TRUCK -> SpotType.LARGE;
-        };
-    }
+// switch violates OCP
+//    private SpotType getSpotType(VehicleType vehicleType) {
+//        return switch (vehicleType) {
+//            case CAR -> SpotType.MEDIUM;
+//            case BIKE -> SpotType.SMALL;
+//            case TRUCK -> SpotType.LARGE;
+//        };
+//    }
 
     public Ticket parkVehicle(Vehicle vehicle, String entryGateId) {
-        SpotType type = getSpotType(vehicle.getVehicleType());
+        SpotType requiredSpotType = vehicle.getVehicleType().getRequiredSpotType();
         ParkingSpot assignedSpot = null;
         while (assignedSpot == null) {  // optimistic locking: try and retry
-            ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, type);
+            ParkingSpot candidate = spotAssignmentStrategy.findSpot(floors, requiredSpotType);
             if(candidate == null) {
                 throw new RuntimeException("No available spot, parking lot is full for " + vehicle.getVehicleType() + " type.");
             }
