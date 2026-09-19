@@ -1,7 +1,6 @@
 package org.saumya.lld.parkingLot.entities;
 
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import org.saumya.lld.parkingLot.enums.PaymentMethod;
@@ -11,14 +10,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
-@Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Payment {
     final String paymentId;
-    String ticketId;
-    double amount;
+    final String ticketId;
+    final double amount;
     PaymentStatus paymentStatus;
-    PaymentMethod paymentMethod;
+    final PaymentMethod paymentMethod;
     final LocalDateTime paymentTime;
 
     public Payment(String ticketId, double amount, PaymentMethod paymentMethod) {
