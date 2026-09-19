@@ -2,14 +2,14 @@ package org.saumya.lld.ticTacToe.entities;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.saumya.lld.ticTacToe.enums.Symbols;
+import org.saumya.lld.ticTacToe.enums.Symbol;
 
 @Getter
 @Setter
 public class Cell {
     private int row;
     private int col;
-    private Symbols symbol;
+    private Symbol symbol;
 
     public Cell(int row, int col) {
         this.row = row;

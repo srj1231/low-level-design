@@ -1,6 +1,6 @@
 package org.saumya.lld.ticTacToe.enums;
 
-public enum Symbols {
+public enum Symbol {
     X,
     O
 }

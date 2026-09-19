@@ -2,7 +2,7 @@ package org.saumya.lld.ticTacToe.entities;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.saumya.lld.ticTacToe.enums.Symbols;
+import org.saumya.lld.ticTacToe.enums.Symbol;
 
 import java.util.UUID;
 
@@ -11,5 +11,5 @@ import java.util.UUID;
 public class Player {
     private UUID playerId;
     private String name;
-    private Symbols symbol;
+    private Symbol symbol;
 }

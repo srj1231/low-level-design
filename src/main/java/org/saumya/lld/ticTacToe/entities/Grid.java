@@ -1,9 +1,10 @@
 package org.saumya.lld.ticTacToe.entities;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.saumya.lld.ticTacToe.enums.MoveResult;
+import org.saumya.lld.ticTacToe.enums.Symbol;
 
 public class Grid {
     @Getter
@@ -11,8 +12,6 @@ public class Grid {
     @Getter
     private final Cell[][] cells;
     private final WinningStrategy winningStrategy;
-    @Setter
-    private Player currentPlayer;
 
     Logger logger = LogManager.getLogger();
 
@@ -27,28 +26,51 @@ public class Grid {
         }
     }
 
-    public boolean hasWon() {
-        return winningStrategy.hasWon(this);
+    public boolean hasWon(Symbol symbol) {
+        return winningStrategy.hasWon(this, symbol);
     }
 
-    public void makeMove(Player player, Cell cell) {
-        boolean isTurnValid = validateTurn(player, cell);
-        if (!isTurnValid) {
-            logger.info("Invalid turn for player " + player.getName() + " at cell " + cell);
-            return;
+    public boolean isBoardFull() {
+        for (int i = 0; i < size; i++) {
+            for (int j = 0; j < size; j++) {
+                if (cells[i][j].getSymbol() == null) {
+                    return false;
+                }
+            }
         }
-        logger.info("Player " + player.getName() + " made a move at cell " + cell);
-        cells[cell.getRow()][cell.getCol()].setSymbol(player.getSymbol());
-        switchPlayer();
+        return true;
     }
 
-    public boolean validateTurn(Player player, Cell cell) {
-        boolean isCellEmpty = cells[cell.getRow()][cell.getCol()].getSymbol() == null;
-        boolean isPlayerTurn = currentPlayer == null || currentPlayer.equals(player);
-        return isCellEmpty && isPlayerTurn;
+    public MoveResult makeMove(Player player, int row, int col) {
+        if (!isValidCell(row, col)) {
+            logger.info("Invalid cell coordinates: ({}, {})", row, col);
+            return MoveResult.INVALID;
+        }
+        if (!isCellEmpty(row, col)) {
+            logger.info("Cell ({}, {}) is already occupied", row, col);
+            return MoveResult.INVALID;
+        }
+        logger.info("Player {} made a move at cell ({}, {})", player.getName(), row, col);
+        cells[row][col].setSymbol(player.getSymbol());
+        
+        // Check if this move resulted in a win
+        if (hasWon(player.getSymbol())) {
+            return MoveResult.WIN;
+        }
+        
+        // Check if board is full (draw)
+        if (isBoardFull()) {
+            return MoveResult.DRAW;
+        }
+        
+        return MoveResult.SUCCESS;
     }
 
-    private void switchPlayer() {
-        this.currentPlayer = null;
+    private boolean isValidCell(int row, int col) {
+        return row >= 0 && row < size && col >= 0 && col < size;
+    }
+
+    private boolean isCellEmpty(int row, int col) {
+        return cells[row][col].getSymbol() == null;
     }
 }

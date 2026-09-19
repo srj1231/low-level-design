@@ -2,6 +2,7 @@ package org.saumya.lld.ticTacToe.entities;
 
 import lombok.Getter;
 import org.saumya.lld.ticTacToe.enums.GameStatus;
+import org.saumya.lld.ticTacToe.enums.MoveResult;
 
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ public class Game {
     private final Grid grid;
     List<Player> playerList;
     private Player currentPlayer;
+    @Getter
     private GameStatus gameStatus;
     @Getter
     private Player winner;
@@ -26,21 +28,34 @@ public class Game {
 
     public void startGame() {
         this.gameStatus = GameStatus.IN_PROGRESS;
+        this.currentPlayer = playerList.get(0);
     }
 
-    public GameStatus checkGameStatus() {
-        boolean isGameWon = grid.hasWon();
-        if (isGameWon) {
-            this.winner = currentPlayer;
-            this.gameStatus = GameStatus.WON;
-        } else {
-            this.gameStatus = GameStatus.IN_PROGRESS;
+    public synchronized void makeMove(int row, int col) {
+        if(gameStatus != GameStatus.IN_PROGRESS) {
+            throw new IllegalStateException("Game is already over");
         }
-        return this.gameStatus;
+        
+        MoveResult result = grid.makeMove(currentPlayer, row, col);
+        
+        switch (result) {
+            case WIN:
+                this.winner = currentPlayer;
+                this.gameStatus = GameStatus.WON;
+                break;
+            case DRAW:
+                this.gameStatus = GameStatus.DRAW;
+                break;
+            case SUCCESS:
+                switchPlayer();
+                break;
+            case INVALID:
+                // Move failed, don't switch player
+                break;
+        }
     }
 
-    public void makeMove(Player player, Cell cell) {
-        this.currentPlayer = player;
-        grid.makeMove(player, cell);
+    private void switchPlayer() {
+        this.currentPlayer = currentPlayer.equals(playerList.get(0)) ? playerList.get(1) : playerList.get(0);
     }
 }
